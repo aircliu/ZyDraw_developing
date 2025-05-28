@@ -71,7 +71,6 @@ To get Zydraw up and running locally, follow these steps:
 
 ## 🙏 Acknowledgements
 
-- Built with [tldraw](https://www.tldraw.com/)
 - Integrates with [CodeSandbox](https://codesandbox.io/) and [StackBlitz](https://stackblitz.com/)
 
 ---
