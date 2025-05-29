@@ -4,8 +4,8 @@ import dynamic from 'next/dynamic'
 import '@tldraw/tldraw/tldraw.css'
 import { MakeRealButton } from './components/MakeRealButton'
 import { PreviewShapeUtil } from './PreviewShape/PreviewShape'
-import TutorialButton from './components/TutorialButton'
 import { uiOverrides } from './components/TldrawUIOverrides'
+import SaveButton from './components/SaveButton'
 
 const Tldraw = dynamic(async () => (await import('@tldraw/tldraw')).Tldraw, {
 	ssr: false,
@@ -22,7 +22,7 @@ export default function Page() {
 				shapeUtils={shapeUtils}
 				overrides={uiOverrides}
 			/>
-			<TutorialButton />
+			<SaveButton />
 		</div>
 	)
 }

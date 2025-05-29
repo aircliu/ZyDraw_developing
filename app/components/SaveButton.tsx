@@ -1,9 +1,6 @@
 import React from 'react';
 
-const TutorialButton: React.FC = () => {
-  const openTutorialVideo = () => {
-    window.open('https://youtu.be/z_VnUCVN6tI', '_blank');
-  };
+const SaveButton: React.FC = () => {
 
   return (
     <button 
@@ -21,11 +18,10 @@ const TutorialButton: React.FC = () => {
         fontSize: '16px',
         fontWeight: 'bold'
       }}
-      onClick={openTutorialVideo}
     >
-      Tutorial
+      Save Design
     </button>
   );
 };
 
-export default TutorialButton;
+export default SaveButton;
