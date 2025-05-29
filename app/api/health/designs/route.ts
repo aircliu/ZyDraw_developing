@@ -29,8 +29,6 @@ export async function POST(req: Request) {
       name: body.name,
       user_id: body.userId,
       shapes: body.shapes || [],
-      created_at: now,
-      updated_at: now,
     })
     .select()
     .single()

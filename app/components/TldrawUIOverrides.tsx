@@ -61,7 +61,7 @@ async function loadTemplateFromDatabase(
 // Function to load user's saved designs list from database
 async function loadUserDesigns(userId: string): Promise<any[]> {
 	try {
-		const res = await fetch(`/api/designs?userId=${userId}`)
+		const res = await fetch(`/api/health/designs?userId=${userId}`)
 		if (!res.ok) throw new Error('Failed to fetch designs')
 		return await res.json()
 	} catch (err) {
@@ -78,7 +78,7 @@ async function loadUserDesign(editor: Editor, designId: string) {
 	const userId = 'current-user-id' // Replace with actual user ID
 
 	try {
-		const res = await fetch(`/api/designs/${designId}?userId=${userId}`)
+		const res = await fetch(`/api/health/designs/${designId}?userId=${userId}`)
 		if (!res.ok) throw new Error('Failed to fetch design')
 		const designData = await res.json()
 		editor.createShapes(designData.shapes)
@@ -102,19 +102,19 @@ async function loadUserDesign(editor: Editor, designId: string) {
 
 // Prompt the user for a name and save the current design
 async function saveCurrentDesign(editor: Editor) {
-        const name = window.prompt('Enter a name for this design:')
-        if (!name) return
-        const userId = 'current-user-id' // Replace with actual user ID
-        const shapes = editor.getCurrentPageShapes()
-        try {
-                await fetch('/api/designs', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ name, userId, shapes }),
-                })
-        } catch (err) {
-                console.error('Error saving design:', err)
-        }
+	const name = window.prompt('Enter a name for this design:')
+	if (!name) return
+	const userId = 'current-user-id' // Replace with actual user ID
+	const shapes = editor.getCurrentPageShapes()
+	try {
+		await fetch('/api/designs', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ name, userId, shapes }),
+		})
+	} catch (err) {
+		console.error('Error saving design:', err)
+	}
 }
 
 // Function to load a template
@@ -235,7 +235,7 @@ export const uiOverrides: TLUiOverrides = {
 			menuItem({
 				id: 'loading-designs',
 				label: 'Loading designs...',
-				onSelect: () => { },
+				onSelect: () => {},
 				readonlyOk: true,
 			})
 		)
@@ -249,22 +249,22 @@ export const uiOverrides: TLUiOverrides = {
 				'My Designs',
 				designs.length > 0
 					? menuGroup(
-						'user-designs',
-						...designs.map((design) =>
-							menuItem({
-								id: `design-${design.id}`,
-								label: design.name,
-								onSelect: () => loadUserDesign(editor, design.id),
-								readonlyOk: false,
-							})
-						)
-					)
+							'user-designs',
+							...designs.map((design) =>
+								menuItem({
+									id: `design-${design.id}`,
+									label: design.name,
+									onSelect: () => loadUserDesign(editor, design.id),
+									readonlyOk: false,
+								})
+							)
+					  )
 					: menuItem({
-						id: 'no-designs',
-						label: 'No saved designs',
-						onSelect: () => { },
-						readonlyOk: true,
-					}),
+							id: 'no-designs',
+							label: 'No saved designs',
+							onSelect: () => {},
+							readonlyOk: true,
+					  }),
 				menuGroup(
 					'design-actions',
 					menuItem({
@@ -304,4 +304,3 @@ export const uiOverrides: TLUiOverrides = {
 		return customMenu
 	},
 }
-
