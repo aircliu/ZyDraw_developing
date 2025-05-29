@@ -11,8 +11,7 @@ import {
 	useToasts,
 	useValue,
 } from '@tldraw/tldraw'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { useCallback } from 'react'
+import React, { useCallback, useState, useRef, useEffect } from 'react'
 import sdk from '@stackblitz/sdk'
 
 // Import from separated files
@@ -124,7 +123,7 @@ function PreviewComponent({ shape, editor }: { shape: PreviewShape; editor: any 
 	const uploadUrl = `data:text/html,${encodeURIComponent(shape.props.html)}`
 
 	return (
-		<HTMLContainer className="tl-embed-container" id={shape.id}>
+		<HTMLContainer className="tl-embed-container" id={shape.id} style={{ overflow: 'visible' }}>
 			{htmlToUse ? (
 				<iframe
 					id={`iframe-1-${shape.id}`}
@@ -165,15 +164,29 @@ function PreviewComponent({ shape, editor }: { shape: PreviewShape; editor: any 
 					display: 'flex',
 					alignItems: 'center',
 					justifyContent: 'center',
-					cursor: 'pointer',
 					pointerEvents: 'all',
+					zIndex: 999999,
 				}}
+				onPointerDown={(e) => e.stopPropagation()}
 			>
-				<Dropdown boxShadow={boxShadow} html={shape.props.html} uploadUrl={uploadUrl}>
+				<Dropdown html={shape.props.html} uploadUrl={uploadUrl}>
 					<button
-						className="bg-white rounded p-2"
-						style={{ boxShadow }}
-						onPointerDown={stopEventPropagation}
+						style={{
+							boxShadow,
+							backgroundColor: 'white',
+							border: '1px solid var(--color-panel-contrast)',
+							borderRadius: '8px',
+							padding: '8px',
+							fontSize: '16px',
+							lineHeight: '1',
+							cursor: 'pointer',
+							width: '32px',
+							height: '32px',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							fontFamily: 'monospace',
+						}}
 					>
 						•••
 					</button>
@@ -247,12 +260,29 @@ function Dropdown({
 	html,
 	uploadUrl,
 }: {
-	boxShadow: string
 	children: React.ReactNode
 	html: string
 	uploadUrl: string
 }) {
 	const toast = useToasts()
+	const [open, setOpen] = React.useState(false)
+	const dropdownRef = React.useRef<HTMLDivElement>(null)
+
+	// Close dropdown when clicking outside
+	React.useEffect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+				setOpen(false)
+			}
+		}
+
+		if (open) {
+			document.addEventListener('mousedown', handleClickOutside)
+			return () => {
+				document.removeEventListener('mousedown', handleClickOutside)
+			}
+		}
+	}, [open])
 
 	// Handler functions for dropdown options
 	const copyLink = useCallback(() => {
@@ -263,6 +293,7 @@ function Dropdown({
 				title: 'Copied link to clipboard',
 			})
 		}
+		setOpen(false)
 	}, [uploadUrl, toast])
 
 	const copyHtml = useCallback(() => {
@@ -272,15 +303,18 @@ function Dropdown({
 				title: 'Copied HTML to clipboard',
 			})
 		}
+		setOpen(false)
 	}, [html, toast])
 
 	const openInCodeSandbox = useCallback(() => {
 		try {
 			const sandboxUrl = getCodeSandboxUrl(html)
-			window.open(sandboxUrl)
-		} catch {
+			window.open(sandboxUrl, '_blank')
+		} catch (e) {
+			console.error('Error opening CodeSandbox:', e)
 			toast.addToast({ title: 'There was a problem opening in CodeSandbox.' })
 		}
+		setOpen(false)
 	}, [html, toast])
 
 	const openInStackBlitz = useCallback(() => {
@@ -288,45 +322,156 @@ function Dropdown({
 			const project = createStackBlitzProject(html)
 			sdk.openProject(project, { openFile: 'index.html' })
 		} catch (e) {
+			console.error('Error opening StackBlitz:', e)
 			toast.addToast({ title: 'There was a problem opening in Stackblitz.' })
 		}
+		setOpen(false)
 	}, [html, toast])
 
 	return (
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger asChild>{children}</DropdownMenu.Trigger>
-			<DropdownMenu.Portal>
-				<DropdownMenu.Content
-					side="right"
-					sideOffset={10}
-					align="start"
-					className="dropdown-content"
-				>
-					<div className="dropdown-inner">
-						<Item action={copyLink}>Copy link</Item>
-						<Item action={copyHtml}>Copy HTML</Item>
-						<div className="dropdown-separator"></div>
-						<Item action={openInCodeSandbox}>Open in CodeSandbox</Item>
-						<Item action={openInStackBlitz}>Open in StackBlitz</Item>
-					</div>
-				</DropdownMenu.Content>
-			</DropdownMenu.Portal>
-		</DropdownMenu.Root>
-	)
-}
-
-// Individual dropdown item component
-function Item({ action, children }: { action: () => void; children: React.ReactNode }) {
-	return (
-		<DropdownMenu.Item asChild>
-			<button
-				onPointerDown={stopEventPropagation}
-				onClick={action}
-				onTouchEnd={action}
-				className="dropdown-item"
+		<div style={{ position: 'relative' }} ref={dropdownRef}>
+			<div
+				onClick={() => {
+					console.log('Button clicked, toggling dropdown')
+					setOpen(!open)
+				}}
+				style={{ cursor: 'pointer' }}
 			>
 				{children}
-			</button>
-		</DropdownMenu.Item>
+			</div>
+			{open && (
+				<div
+					onClick={(e) => {
+						e.stopPropagation()
+						e.preventDefault()
+					}}
+					style={{
+						position: 'absolute',
+						top: '35px',
+						left: '0',
+						minWidth: '200px',
+						backgroundColor: '#ffffff',
+						borderRadius: '8px',
+						padding: '6px',
+						boxShadow:
+							'0 10px 38px -10px rgba(22, 23, 24, 0.35), 0 10px 20px -15px rgba(22, 23, 24, 0.2)',
+						border: '2px solid #333',
+						zIndex: 999999999,
+					}}
+				>
+					<button
+						onClick={copyLink}
+						style={{
+							display: 'block',
+							width: '100%',
+							padding: '8px 12px',
+							fontSize: '14px',
+							textAlign: 'left',
+							backgroundColor: 'transparent',
+							border: 'none',
+							borderRadius: '4px',
+							cursor: 'pointer',
+							transition: 'background-color 0.2s',
+							fontFamily: 'inherit',
+							color: '#000',
+							outline: 'none',
+						}}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.backgroundColor = '#f0f0f0'
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.backgroundColor = 'transparent'
+						}}
+					>
+						Copy link
+					</button>
+					<button
+						onClick={copyHtml}
+						style={{
+							display: 'block',
+							width: '100%',
+							padding: '8px 12px',
+							fontSize: '14px',
+							textAlign: 'left',
+							backgroundColor: 'transparent',
+							border: 'none',
+							borderRadius: '4px',
+							cursor: 'pointer',
+							transition: 'background-color 0.2s',
+							fontFamily: 'inherit',
+							color: '#000',
+							outline: 'none',
+						}}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.backgroundColor = '#f0f0f0'
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.backgroundColor = 'transparent'
+						}}
+					>
+						Copy HTML
+					</button>
+					<div
+						style={{
+							height: '1px',
+							margin: '6px 0',
+							backgroundColor: '#e5e5e5',
+						}}
+					/>
+					<button
+						onClick={openInCodeSandbox}
+						style={{
+							display: 'block',
+							width: '100%',
+							padding: '8px 12px',
+							fontSize: '14px',
+							textAlign: 'left',
+							backgroundColor: 'transparent',
+							border: 'none',
+							borderRadius: '4px',
+							cursor: 'pointer',
+							transition: 'background-color 0.2s',
+							fontFamily: 'inherit',
+							color: '#000',
+							outline: 'none',
+						}}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.backgroundColor = '#f0f0f0'
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.backgroundColor = 'transparent'
+						}}
+					>
+						Open in CodeSandbox
+					</button>
+					<button
+						onClick={openInStackBlitz}
+						style={{
+							display: 'block',
+							width: '100%',
+							padding: '8px 12px',
+							fontSize: '14px',
+							textAlign: 'left',
+							backgroundColor: 'transparent',
+							border: 'none',
+							borderRadius: '4px',
+							cursor: 'pointer',
+							transition: 'background-color 0.2s',
+							fontFamily: 'inherit',
+							color: '#000',
+							outline: 'none',
+						}}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.backgroundColor = '#f0f0f0'
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.backgroundColor = 'transparent'
+						}}
+					>
+						Open in StackBlitz
+					</button>
+				</div>
+			)}
+		</div>
 	)
 }
