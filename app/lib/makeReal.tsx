@@ -1,104 +1,81 @@
-import { Editor, createShapeId, getSvgAsImage, track } from '@tldraw/tldraw'
+import { Editor, createShapeId, getSvgAsImage } from '@tldraw/tldraw'
 import { getSelectionAsText } from '../lib/getSelectionAsText'
 import { getHtmlFromOpenAI } from '../lib/getHtmlFromOpenAI'
+import { parseReactApp } from '../lib/parseReactApp'
 import { blobToBase64 } from '../utils/blobToBase64'
-import { addGridToSvg } from '../utils/addGridToSvg'
 import { PreviewShape } from '../PreviewShape/PreviewShape'
 
 export async function makeReal(editor: Editor) {
-	// Get the API key from the environment variable
-	const envApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
-	if (!envApiKey) {
-		throw Error('API key not configured. Please set the NEXT_PUBLIC_OPENAI_API_KEY environment variable.')
+	const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY
+
+	if (!apiKey) {
+		throw Error('OpenAI API key not configured')
 	}
 
-	// Use the environment API key, but allow for potential override (mimicking previous behavior)
-	const apiKey = localStorage.getItem('makeitreal_key') || envApiKey
-
-	// Get the selected shapes (we need at least one)
 	const selectedShapes = editor.getSelectedShapes()
-	if (selectedShapes.length === 0) throw Error('First select something to make real.')
+	if (selectedShapes.length === 0) {
+		throw Error('Select something to make real.')
+	}
 
-	// Create the preview shape
+	// Create preview shape
 	const { maxX, midY } = editor.getSelectionPageBounds()!
 	const newShapeId = createShapeId()
+
 	editor.createShape<PreviewShape>({
 		id: newShapeId,
 		type: 'response',
-		x: maxX + 60, // to the right of the selection
-		y: midY - (540 * 2) / 3 / 2, // half the height of the preview's initial shape
-		props: { html: '' },
+		x: maxX + 60,
+		y: midY - (540 * 2) / 3 / 2,
+		props: {
+			html: '',
+			files: [],
+		},
 	})
 
-	// Get an SVG based on the selected shapes
-	const svg = await editor.getSvg(selectedShapes, {
-		scale: 1,
-		background: true,
-	})
-	if (!svg) {
-		return
-	}
-
-	// Add the grid lines to the SVG
-	const grid = { color: 'red', size: 100, labels: true }
-	addGridToSvg(svg, grid)
-	if (!svg) throw Error(`Could not get the SVG.`)
-
-	// Turn the SVG into a DataUrl
-	const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
-	const blob = await getSvgAsImage(svg, IS_SAFARI, {
-		type: 'png',
-		quality: 0.8,
-		scale: 1,
-	})
-	const dataUrl = await blobToBase64(blob!)
-
-	// Get any previous previews among the selected shapes
-	const previousPreviews = selectedShapes.filter((shape) => {
-		return shape.type === 'response'
-	}) as PreviewShape[]
-
-	// Send everything to OpenAI and get some HTML back
 	try {
-		const json = await getHtmlFromOpenAI({
+		// Get SVG of selection
+		const svg = await editor.getSvg(selectedShapes, {
+			scale: 1,
+			background: true,
+		})
+
+		const blob = await getSvgAsImage(svg!, false, {
+			type: 'png',
+			quality: 0.8,
+			scale: 1,
+		})
+
+		const dataUrl = await blobToBase64(blob!)
+
+		// Call OpenAI
+		const response = await getHtmlFromOpenAI({
 			image: dataUrl,
 			apiKey,
 			text: getSelectionAsText(editor),
-			previousPreviews,
-			grid,
+			grid: undefined,
 			theme: editor.user.getUserPreferences().isDarkMode ? 'dark' : 'light',
 		})
-		if (!json) {
-			throw Error('Could not contact OpenAI.')
-		}
-		if (json?.error) {
-			throw Error(`${json.error.message?.slice(0, 128)}...`)
-		}
 
-		// Extract the HTML from the response
-		const message = json.choices[0].message.content
-		const start = message.indexOf('<!DOCTYPE html>')
-		const end = message.indexOf('</html>')
-		const html = message.slice(start, end + '</html>'.length)
+		const message = response.choices[0].message.content
 
-		// No HTML? Something went wrong
-		if (html.length < 100) {
-			console.warn(message)
-			throw Error('Could not generate a design from those wireframes.')
+		// Parse React app from response
+		const parsedApp = parseReactApp(message)
+
+		if (!parsedApp || parsedApp.files.length === 0) {
+			throw Error('Could not generate a React app from the design')
 		}
 
-		// Update the shape with the new props
+		// Update shape with React files
 		editor.updateShape<PreviewShape>({
 			id: newShapeId,
 			type: 'response',
 			props: {
-				html,
+				html: '', // Keep empty for backwards compatibility
+				files: parsedApp.files,
 			},
 		})
-		console.log(`Response: ${message}`)
-	} catch (e) {
-		// If anything went wrong, delete the shape.
+	} catch (error) {
 		editor.deleteShape(newShapeId)
-		throw e
+		throw error
 	}
 }

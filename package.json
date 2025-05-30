@@ -13,6 +13,7 @@
     "@stackblitz/sdk": "^1.11.0",
     "@supabase/supabase-js": "^2.49.8",
     "@tldraw/tldraw": "^2.0.0-canary.d0f6ef80fcf9",
+    "@webcontainer/api": "^1.6.1",
     "next": "^14.0.3",
     "react": "^18",
     "react-dom": "^18",

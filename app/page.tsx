@@ -22,8 +22,15 @@ export default function Page() {
 			return
 		}
 
-		const name = window.prompt('Enter a name for this design:')
-		if (!name) return
+		// Check if we're updating an existing project or creating a new one
+		const currentProjectId = localStorage.getItem('current_project_id')
+		const currentProjectName = localStorage.getItem('current_project_name')
+
+		let name = currentProjectName
+		if (!name) {
+			name = window.prompt('Enter a name for this project:')
+			if (!name) return
+		}
 
 		const shapes = editor.getCurrentPageShapes()
 
@@ -34,19 +41,39 @@ export default function Page() {
 		}
 
 		try {
-			const response = await fetch('/api/health/designs', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name, userId, shapes }),
-			})
+			if (currentProjectId) {
+				// Update existing project
+				const response = await fetch(`/api/health/designs/${currentProjectId}`, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ name, shapes }),
+				})
 
-			if (!response.ok) {
-				throw new Error('Failed to save')
+				if (!response.ok) {
+					throw new Error('Failed to update project')
+				}
+
+				alert('Project updated successfully!')
+			} else {
+				// Create new project
+				const response = await fetch('/api/health/designs', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ name, userId, shapes }),
+				})
+
+				if (!response.ok) {
+					throw new Error('Failed to save project')
+				}
+
+				const data = await response.json()
+				localStorage.setItem('current_project_id', data.id)
+				localStorage.setItem('current_project_name', name)
+
+				alert('Project saved successfully!')
 			}
-
-			alert('Design saved successfully!')
 		} catch (error) {
-			alert('Failed to save design: ' + (error as Error).message)
+			alert('Failed to save project: ' + (error as Error).message)
 		}
 	}
 
@@ -79,7 +106,7 @@ export default function Page() {
 						fontWeight: 'bold',
 					}}
 				>
-					Save Design
+					Save Project
 				</button>
 			)}
 		</div>
